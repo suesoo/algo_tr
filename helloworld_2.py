@@ -184,18 +184,19 @@ class PriceHistory:
             low = obj.GetDataValue(3, i)  # 저가
             close = obj.GetDataValue(4, i)  # 종가
             diff = obj.GetDataValue(5, i)  # 종가
-            vol = obj.GetDataValue(6, i)  # 종가
+            vol = obj.GetDataValue(6, i)  # 거래량
             print(date, open, high, low, close, diff, vol)
         return True
 
     def db_update(self):
-        db ={
+        db = {
             'host': '192.168.1.2',
             'database': 'market',
             'user': 'root',
             'passwd': 'goose',
         }
         mysql.connector.connect(**db)
+
 
 
 class MyWindow(QMainWindow):
@@ -219,8 +220,8 @@ class MyWindow(QMainWindow):
 
     def get_history_data(self):
         # print('get history data')
-        self.objPriceHistory.db_update()
-        # self.objPriceHistory.request_history('A000660')
+        # self.objPriceHistory.db_update()
+        self.objPriceHistory.request_history('A000660')
 
     def setUI(self):
         self.ui = uic.loadUi('win3.ui', self)
@@ -231,18 +232,6 @@ class MyWindow(QMainWindow):
         self.price_table.setRowCount(len(code_dict))
         self.price_table.setColumnCount(11)
         self.price_table.setHorizontalHeaderLabels(self.column_headers)
-
-        # btn1 = QPushButton("요청 시작", self)
-        # btn1.move(20, 20)
-        # btn1.clicked.connect(self.btn1_clicked)
-        #
-        # btn2 = QPushButton("요청 종료", self)
-        # btn2.move(20, 70)
-        # btn2.clicked.connect(self.btn2_clicked)
-        #
-        # btn3 = QPushButton("종료", self)
-        # btn3.move(20, 120)
-        # btn3.clicked.connect(self.btn3_clicked)
 
     def quit(self):
         print('close window')
