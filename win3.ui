@@ -78,6 +78,7 @@
     <addaction name="actionConnect"/>
     <addaction name="actionSubscribe_Price"/>
     <addaction name="actionUnsubscribe_Price"/>
+    <addaction name="actionGetHistoryData"/>
    </widget>
    <widget class="QMenu" name="menuFile">
     <property name="title">
@@ -112,6 +113,11 @@
   <action name="actionQuit">
    <property name="text">
     <string>Quit</string>
+   </property>
+  </action>
+  <action name="actionGetHistoryData">
+   <property name="text">
+    <string>GetHistoryData</string>
    </property>
   </action>
  </widget>

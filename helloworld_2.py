@@ -3,12 +3,13 @@ from PyQt5.QtWidgets import *
 from PyQt5 import uic
 import win32com.client
 import ctypes
-
+import mysql.connector
 
 g_objCodeMgr = win32com.client.Dispatch('CpUtil.CpCodeMgr')
 g_objCpCybos= win32com.client.Dispatch('CpUtil.CpCybos')
 g_objCpTrade = win32com.client.Dispatch('CpTrade.CpTdUtil')
 g_objFutureMgr = win32com.client.Dispatch("CpUtil.CpFutureCode")
+g_objStockWeek = win32com.client.Dispatch("DsCbo1.StockWeek")
 
 code_dict = {'A000660': 0,
              'A010950': 1,
@@ -17,21 +18,13 @@ code_dict = {'A000660': 0,
              'A066570': 4
              }
 
-g_main_win = None
-
 
 class CpEvent:
 
     instance = None
+    main_win = None
 
     def OnReceived(self):
-        # time = CpEvent.instance.GetHeaderValue(3)  # 시간
-        # timess = CpEvent.instance.GetHeaderValue(18)  # 초
-        # exFlag = CpEvent.instance.GetHeaderValue(19)  # 예상체결 플래그
-        # cprice = CpEvent.instance.GetHeaderValue(13)  # 현재가
-        # diff = CpEvent.instance.GetHeaderValue(2)  # 대비
-        # cVol = CpEvent.instance.GetHeaderValue(17)  # 순간체결수량
-        # vol = CpEvent.instance.GetHeaderValue(9)  # 거래량
 
         code = CpEvent.instance.GetHeaderValue(0)  # 종목코드
         name = CpEvent.instance.GetHeaderValue(1)  # 종목명
@@ -48,18 +41,18 @@ class CpEvent:
         exFlag = CpEvent.instance.GetHeaderValue(19)  # 예상체결 플래그
 
         line_no = code_dict[code]
-        g_main_win.price_table.setItem(line_no, 0, QTableWidgetItem(code))
-        g_main_win.price_table.setItem(line_no, 1, QTableWidgetItem(name))
-        g_main_win.price_table.setItem(line_no, 2, QTableWidgetItem(str(cprice)))
-        g_main_win.price_table.setItem(line_no, 3, QTableWidgetItem(str(diff)))
-        g_main_win.price_table.setItem(line_no, 4, QTableWidgetItem(str(offer)))
-        g_main_win.price_table.setItem(line_no, 5, QTableWidgetItem(str(bid)))
-        g_main_win.price_table.setItem(line_no, 6, QTableWidgetItem(str(vol)))
-        g_main_win.price_table.setItem(line_no, 7, QTableWidgetItem(str(vol_value)))
-        g_main_win.price_table.setItem(line_no, 8, QTableWidgetItem(str(open)))
-        g_main_win.price_table.setItem(line_no, 9, QTableWidgetItem(str(high)))
-        g_main_win.price_table.setItem(line_no, 10, QTableWidgetItem(str(low)))
-        g_main_win.price_table.resizeColumnsToContents()
+        CpEvent.main_win.price_table.setItem(line_no, 0, QTableWidgetItem(code))
+        CpEvent.main_win.price_table.setItem(line_no, 1, QTableWidgetItem(name))
+        CpEvent.main_win.price_table.setItem(line_no, 2, QTableWidgetItem(str(cprice)))
+        CpEvent.main_win.price_table.setItem(line_no, 3, QTableWidgetItem(str(diff)))
+        CpEvent.main_win.price_table.setItem(line_no, 4, QTableWidgetItem(str(offer)))
+        CpEvent.main_win.price_table.setItem(line_no, 5, QTableWidgetItem(str(bid)))
+        CpEvent.main_win.price_table.setItem(line_no, 6, QTableWidgetItem(str(vol)))
+        CpEvent.main_win.price_table.setItem(line_no, 7, QTableWidgetItem(str(vol_value)))
+        CpEvent.main_win.price_table.setItem(line_no, 8, QTableWidgetItem(str(open)))
+        CpEvent.main_win.price_table.setItem(line_no, 9, QTableWidgetItem(str(high)))
+        CpEvent.main_win.price_table.setItem(line_no, 10, QTableWidgetItem(str(low)))
+        CpEvent.main_win.price_table.resizeColumnsToContents()
 
         # if exFlag == '1':  # 동시호가 시간 (예상체결)
         #     print("실시간(예상체결)", timess, "*", cprice, "대비", diff, "체결량", cVol, "거래량", vol)
@@ -68,11 +61,16 @@ class CpEvent:
 
 
 class CpStockCur:
+
+    def __init__(self, main_win):
+        self.main = main_win
+
     def Subscribe(self, code):
         self.objStockCur = win32com.client.Dispatch("DsCbo1.StockCur")
         win32com.client.WithEvents(self.objStockCur, CpEvent)
         self.objStockCur.SetInputValue(0, code)
         CpEvent.instance = self.objStockCur
+        CpEvent.main_win = self.main
         self.objStockCur.Subscribe()
 
     def Unsubscribe(self):
@@ -136,6 +134,70 @@ class CpStockMst:
         return True
 
 
+class PriceHistory:
+
+    def __init__(self):
+        print("init PriceHistory class")
+
+    def request_history(self, code):
+        bConnect = g_objCpCybos.IsConnect
+        if bConnect == 0:
+            print("PLUS가 정상적으로 연결되지 않음.")
+            exit()
+
+        # 일자별 object 구하기
+        g_objStockWeek.SetInputValue(0, code)  # 종목 코드 - 삼성전자
+
+        # 최초 데이터 요청
+        ret = self.request_com(g_objStockWeek)
+        if not ret:
+            exit()
+
+        # 연속 데이터 요청
+        # 예제는 5번만 연속 통신 하도록 함.
+        NextCount = 1
+        while g_objStockWeek.Continue:  # 연속 조회처리
+            NextCount += 1
+            if NextCount > 5:
+                break
+            ret = self.request_com(g_objStockWeek)
+            if not ret:
+                exit()
+
+    def request_com(self, obj):
+        # 데이터 요청
+        obj.BlockRequest()
+
+        # 통신 결과 확인
+        rqStatus = obj.GetDibStatus()
+        rqRet = obj.GetDibMsg1()
+        print("통신상태", rqStatus, rqRet)
+        if rqStatus != 0:
+            return False
+
+        # 일자별 정보 데이터 처리
+        count = obj.GetHeaderValue(1)  # 데이터 개수
+        for i in range(count):
+            date = obj.GetDataValue(0, i)  # 일자
+            open = obj.GetDataValue(1, i)  # 시가
+            high = obj.GetDataValue(2, i)  # 고가
+            low = obj.GetDataValue(3, i)  # 저가
+            close = obj.GetDataValue(4, i)  # 종가
+            diff = obj.GetDataValue(5, i)  # 종가
+            vol = obj.GetDataValue(6, i)  # 종가
+            print(date, open, high, low, close, diff, vol)
+        return True
+
+    def db_update(self):
+        db ={
+            'host': '192.168.1.2',
+            'database': 'market',
+            'user': 'root',
+            'passwd': 'goose',
+        }
+        mysql.connector.connect(**db)
+
+
 class MyWindow(QMainWindow):
 
     def __init__(self):
@@ -144,7 +206,8 @@ class MyWindow(QMainWindow):
         g_main_win = self
         self.isRq = False
         self.objStockMst = CpStockMst(self)
-        self.objStockCur = CpStockCur()
+        self.objStockCur = CpStockCur(self)
+        self.objPriceHistory = PriceHistory()
 
         self.setUI()
         # slot 등록하는 과정
@@ -152,6 +215,12 @@ class MyWindow(QMainWindow):
         self.actionConnect.triggered.connect(self.connect)
         self.actionSubscribe_Price.triggered.connect(self.subscribe)
         self.actionUnsubscribe_Price.triggered.connect(self.unsubscribe)
+        self.actionGetHistoryData.triggered.connect(self.get_history_data)
+
+    def get_history_data(self):
+        # print('get history data')
+        self.objPriceHistory.db_update()
+        # self.objPriceHistory.request_history('A000660')
 
     def setUI(self):
         self.ui = uic.loadUi('win3.ui', self)
