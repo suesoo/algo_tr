@@ -4,6 +4,7 @@ from PyQt5 import uic
 import win32com.client
 import ctypes
 import mysql.connector
+import pandas as pd
 
 g_objCodeMgr = win32com.client.Dispatch('CpUtil.CpCodeMgr')
 g_objCpCybos= win32com.client.Dispatch('CpUtil.CpCybos')
@@ -137,6 +138,14 @@ class CpStockMst:
 class PriceHistory:
 
     def __init__(self):
+        self.conn = None
+        self.cursor = None
+        self.db_config = {
+            'host': '192.168.1.2',
+            'database': 'market',
+            'user': 'root',
+            'passwd': 'goose'
+        }
         print("init PriceHistory class")
 
     def request_history(self, code):
@@ -183,20 +192,93 @@ class PriceHistory:
             high = obj.GetDataValue(2, i)  # 고가
             low = obj.GetDataValue(3, i)  # 저가
             close = obj.GetDataValue(4, i)  # 종가
-            diff = obj.GetDataValue(5, i)  # 종가
+            diff = obj.GetDataValue(5, i)  # 전일대비 증감
             vol = obj.GetDataValue(6, i)  # 거래량
             print(date, open, high, low, close, diff, vol)
         return True
 
-    def db_update(self):
-        db = {
-            'host': '192.168.1.2',
-            'database': 'market',
-            'user': 'root',
-            'passwd': 'goose',
-        }
-        mysql.connector.connect(**db)
+    def request_master(self):
 
+        # 연결 여부 체크
+        bConnect = g_objCpCybos.IsConnect
+        if bConnect == 0:
+            print("PLUS가 정상적으로 연결되지 않음. ")
+            return
+
+        # 종목코드 리스트 구하기
+        objCpCodeMgr = win32com.client.Dispatch("CpUtil.CpCodeMgr")
+        codes = objCpCodeMgr.GetStockListByMarket(1)  # 거래소
+        codes_2 = objCpCodeMgr.GetStockListByMarket(2)  # 코스닥
+        print("거래소 종목코드", len(codes))
+        section_codes, names, std_prices = [], [], []
+
+        for i, code in enumerate(codes):
+            section_codes.append(objCpCodeMgr.GetStockSectionKind(code))
+            names.append(objCpCodeMgr.CodeToName(code))
+            std_prices.append(objCpCodeMgr.GetStockStdPrice(code))
+        master_dic = {'code': codes,
+                      'section_code': section_codes,
+                      'prod_name': names,
+                      'std_price': std_prices}
+        df_kospi = pd.DataFrame(data=master_dic)
+
+        print("코스닥 종목코드", len(codes_2))
+        section_codes, names, std_prices = [], [], []
+        for i, code in enumerate(codes_2):
+            section_codes.append(objCpCodeMgr.GetStockSectionKind(code))
+            names.append(objCpCodeMgr.CodeToName(code))
+            std_prices.append(objCpCodeMgr.GetStockStdPrice(code))
+        master_dic = {'code': codes_2,
+                      'section_code': section_codes,
+                      'prod_name': names,
+                      'std_price': std_prices}
+        df_kosdaq = pd.DataFrame(data=master_dic)
+        self.db_master_update(df_kospi, truncate=True)
+        self.db_master_update(df_kosdaq)
+
+        # print(df_kospi)
+        # print(df_kodaq)
+
+    def db_master_update(self, df_data, truncate=False):
+        self.conn = mysql.connector.connect(**self.db_config)
+        self.cursor = self.conn.cursor()
+        if truncate:
+            self.cursor.execute('truncate table market.master')
+            self.conn.commit()
+        query = "insert into market.master(code, name, section, std_price) values(%s, %s, %s, %s)"
+        query_2 = "update market.master set name = %s, section = %s, std_price =%s where code = %s"
+        print('db being updated.')
+
+        for idx, row in df_data.iterrows():
+            try:
+                arg = (row.code, row.prod_name, row.section_code, row.std_price)
+                self.cursor.execute(query, arg)
+            except mysql.connector.Error as err:
+                arg = (row.prod_name, row.section_code, row.std_price, row.code)
+                self.cursor.execute(query_2, arg)
+        self.conn.commit()
+        self.cursor.close()
+        self.conn.close()
+        print('db updated.')
+
+    def db_price_update(self, df_data):
+        self.conn = mysql.connector.connect(**self.db_config)
+        self.cursor = self.conn.cursor()
+        query = "insert into market.master(code, name, section, std_price) values(%s, %s, %s, %s)"
+        query_2 = "update market.master set name = %s, section = %s, std_price =%s where code = %s"
+        print('db being updated.')
+
+        for idx, row in df_data.iterrows():
+            try:
+                arg = (row.code, row.prod_name, row.section_code, row.std_price)
+                self.cursor.execute(query, arg)
+            except mysql.connector.Error as err:
+                arg = (row.prod_name, row.section_code, row.std_price, row.code)
+                self.cursor.execute(query_2, arg)
+        self.conn.commit()
+        self.cursor.close()
+        self.conn.close()
+        print('db updated.')
 
 
 class MyWindow(QMainWindow):
@@ -217,6 +299,13 @@ class MyWindow(QMainWindow):
         self.actionSubscribe_Price.triggered.connect(self.subscribe)
         self.actionUnsubscribe_Price.triggered.connect(self.unsubscribe)
         self.actionGetHistoryData.triggered.connect(self.get_history_data)
+        self.actionGetMasterData.triggered.connect(self.get_master_data)
+
+    def get_master_data(self):
+        self.objPriceHistory.request_master()
+        # print('get master data')
+        # self.objPriceHistory.db_update()
+        # self.objPriceHistory.request_history('A000660')
 
     def get_history_data(self):
         # print('get history data')
