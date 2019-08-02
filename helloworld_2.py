@@ -167,7 +167,7 @@ class PriceHistory:
         NextCount = 1
         while g_objStockWeek.Continue:  # 연속 조회처리
             NextCount += 1
-            if NextCount > 5:
+            if NextCount > 20:
                 break
             ret = self.request_com(g_objStockWeek)
             if not ret:
@@ -184,6 +184,7 @@ class PriceHistory:
         if rqStatus != 0:
             return False
 
+        dates, opens, highs, lows, closes, diffs, vols = [], [], [], [], [], [], []
         # 일자별 정보 데이터 처리
         count = obj.GetHeaderValue(1)  # 데이터 개수
         for i in range(count):
@@ -194,7 +195,17 @@ class PriceHistory:
             close = obj.GetDataValue(4, i)  # 종가
             diff = obj.GetDataValue(5, i)  # 전일대비 증감
             vol = obj.GetDataValue(6, i)  # 거래량
+            dates.append(date)
+            opens.append(open)
+            highs.append(high)
+            lows.append(low)
+            closes.append(close)
+            diffs.append(diff)
+            vols.append(vol)
             print(date, open, high, low, close, diff, vol)
+            price_dic = {'date': dates, 'open': opens, 'high':highs,'lows': lows, 'close':closes, 'diff':diffs,'vols':vols }
+            df_price = pd.DataFrame(data=price_dic)
+            print(df_price)
         return True
 
     def request_master(self):
@@ -221,6 +232,7 @@ class PriceHistory:
                       'prod_name': names,
                       'std_price': std_prices}
         df_kospi = pd.DataFrame(data=master_dic)
+        print(df_kospi)
 
         print("코스닥 종목코드", len(codes_2))
         section_codes, names, std_prices = [], [], []
@@ -233,11 +245,9 @@ class PriceHistory:
                       'prod_name': names,
                       'std_price': std_prices}
         df_kosdaq = pd.DataFrame(data=master_dic)
+        print(df_kosdaq)
         self.db_master_update(df_kospi, truncate=True)
         self.db_master_update(df_kosdaq)
-
-        # print(df_kospi)
-        # print(df_kodaq)
 
     def db_master_update(self, df_data, truncate=False):
         self.conn = mysql.connector.connect(**self.db_config)
@@ -256,6 +266,7 @@ class PriceHistory:
             except mysql.connector.Error as err:
                 arg = (row.prod_name, row.section_code, row.std_price, row.code)
                 self.cursor.execute(query_2, arg)
+
         self.conn.commit()
         self.cursor.close()
         self.conn.close()
@@ -264,9 +275,9 @@ class PriceHistory:
     def db_price_update(self, df_data):
         self.conn = mysql.connector.connect(**self.db_config)
         self.cursor = self.conn.cursor()
-        query = "insert into market.master(code, name, section, std_price) values(%s, %s, %s, %s)"
-        query_2 = "update market.master set name = %s, section = %s, std_price =%s where code = %s"
-        print('db being updated.')
+        query = "insert into market.etp(date, code, name, open, high, low, close, volume) values(%s, %s, %s, %s,%s, %s, %s, %s)"
+        query_2 = "update market.etp set open = %s, high = %s, low = %s, close = %s where code = %s and date = %s"
+        print('price history being updated.')
 
         for idx, row in df_data.iterrows():
             try:
@@ -278,6 +289,51 @@ class PriceHistory:
         self.conn.commit()
         self.cursor.close()
         self.conn.close()
+        print('db updated.')
+
+    def db_price_update(self, df_data, code,table_name):
+        self.conn = mysql.connector.connect(**self.db_config)
+        self.cursor = self.conn.cursor()
+        query = "insert into market.etp(date, code, open, high, low, close, volume) values(%s, %s, %s, %s,%s, %s, %s, %s)"
+        query_2 = "update market.etp set open = %s, high = %s, low = %s, close = %s where code = %s and date = %s"
+        print('price history being updated.')
+
+        for idx, row in df_data.iterrows():
+            try:
+                arg = (row.code, row.prod_name, row.section_code, row.std_price)
+                self.cursor.execute(query, arg)
+            except mysql.connector.Error as err:
+                arg = (row.prod_name, row.section_code, row.std_price, row.code)
+                self.cursor.execute(query_2, arg)
+        self.conn.commit()
+        self.cursor.close()
+        self.conn.close()
+        print('db updated.')
+
+    def db_etp_update(self, truncate=False):
+        self.conn = mysql.connector.connect(**self.db_config)
+        self.cursor = self.conn.cursor()
+        if truncate:
+            self.cursor.execute('truncate table market.master')
+            self.conn.commit()
+        query = "select * from market.master where section = '10' or section = '17'"
+        query_2 = "update market.master set name = %s, section = %s, std_price =%s where code = %s"
+        print('db being updated.')
+        df = pd.read_sql(query, self.conn)
+        self.cursor.close()
+        self.conn.close()
+        print(df)
+
+        for idx, row in df.iterrows():
+            self.request_history(row.code)
+            if idx > 2:
+                break
+            # try:
+            #     arg = (row.code, row.prod_name, row.section_code, row.std_price)
+            #     self.cursor.execute(query, arg)
+            # except mysql.connector.Error as err:
+            #     arg = (row.prod_name, row.section_code, row.std_price, row.code)
+            #     self.cursor.execute(query_2, arg)
         print('db updated.')
 
 
@@ -300,6 +356,11 @@ class MyWindow(QMainWindow):
         self.actionUnsubscribe_Price.triggered.connect(self.unsubscribe)
         self.actionGetHistoryData.triggered.connect(self.get_history_data)
         self.actionGetMasterData.triggered.connect(self.get_master_data)
+        self.actionGetETPPrice.triggered.connect(self.get_etp_price)
+
+    def get_etp_price(self):
+        # print('etp price ....')
+        self.objPriceHistory.db_etp_update()
 
     def get_master_data(self):
         self.objPriceHistory.request_master()

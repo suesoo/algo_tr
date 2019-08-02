@@ -80,6 +80,7 @@
     <addaction name="actionUnsubscribe_Price"/>
     <addaction name="actionGetHistoryData"/>
     <addaction name="actionGetMasterData"/>
+    <addaction name="actionGetETPPrice"/>
    </widget>
    <widget class="QMenu" name="menuFile">
     <property name="title">
@@ -124,6 +125,11 @@
   <action name="actionGetMasterData">
    <property name="text">
     <string>GetMasterData</string>
+   </property>
+  </action>
+  <action name="actionGetETPPrice">
+   <property name="text">
+    <string>GetETPPrice</string>
    </property>
   </action>
  </widget>
