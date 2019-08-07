@@ -5,6 +5,9 @@ import win32com.client
 import ctypes
 import mysql.connector
 import pandas as pd
+import account as acc
+import time
+
 
 g_objCodeMgr = win32com.client.Dispatch('CpUtil.CpCodeMgr')
 g_objCpCybos= win32com.client.Dispatch('CpUtil.CpCybos')
@@ -167,8 +170,8 @@ class PriceHistory:
         NextCount = 1
         while g_objStockWeek.Continue:  # 연속 조회처리
             NextCount += 1
-            if NextCount > 20:
-                break
+            # if NextCount > 80:
+            #     break
             ret = self.request_com(g_objStockWeek, code)
             if not ret:
                 exit()
@@ -206,7 +209,8 @@ class PriceHistory:
         price_dic = {'date': dates, 'open': opens, 'high': highs, 'low': lows, 'close': closes, 'ch': changes, 'vol': vols}
         df_price = pd.DataFrame(data=price_dic)
         self.db_price_update(df_price, code)
-        print(df_price)
+        print('code {}가 일부 update 됨'.format(code))
+        # print(df_price)
         return True
 
     def request_master(self):
@@ -276,43 +280,33 @@ class PriceHistory:
         self.cursor = self.conn.cursor()
         query = "insert into market.etp(prod_code, tr_date, open, high, low, close, volume) values(%s, %s, %s, %s,%s, %s, %s)"
         query_2 = "update market.etp set open = %s, high = %s, low = %s, close = %s, volume = %s where prod_code = %s and tr_date = %s"
-        # query = "insert into market.etp(prod_code, tr_date, open, high, low, close, volume) values(%s, %s, %s,%s, %s, %s, %s)"
-        # query_2 = "update market.etp set open = %s, high = %s, low = %s, close = %s, volume = %s where prod_code = %s and tr_date = %s"
-
-        print('price history being updated.')
         for idx, row in df_data.iterrows():
             try:
                 arg = (code, row.date, row.open, row.high, row.low, row.close, row.vol)
-                # arg = (code, row.date, row.open, row.high, row.low, row.close, row.vol)
                 self.cursor.execute(query, arg)
-                # print(row.ch)
             except mysql.connector.Error as err:
                 arg = (row.open, row.high, row.low, row.close, row.vol, code, row.date)
-                # arg = (row.open, row.high, row.low, row.close, row.vol, code, row.date)
                 self.cursor.execute(query_2, arg)
         self.conn.commit()
         self.cursor.close()
         self.conn.close()
         print('db updated.')
 
-    def db_etp_update(self, truncate=False):
+    def db_etp_update(self):
         self.conn = mysql.connector.connect(**self.db_config)
         self.cursor = self.conn.cursor()
-        if truncate:
-            self.cursor.execute('truncate table market.master')
-            self.conn.commit()
         query = "select * from market.master where section = '10' or section = '17'"
-        query_2 = "update market.master set name = %s, section = %s, std_price =%s where code = %s"
-        print('db being updated.')
         df = pd.read_sql(query, self.conn)
         self.cursor.close()
         self.conn.close()
         print(df)
-
         for idx, row in df.iterrows():
             self.request_history(row.code)
-            if idx > 2:
-                break
+            print('{}번째 종목이 update 되었습니다.'.format(idx))
+            time.sleep(1)
+        print('ETP 전종목 update가 끝났습니다.')
+            # if idx > 1:
+            #     break
             # try:
             #     arg = (row.code, row.prod_name, row.section_code, row.std_price)
             #     self.cursor.execute(query, arg)
@@ -342,6 +336,15 @@ class MyWindow(QMainWindow):
         self.actionGetHistoryData.triggered.connect(self.get_history_data)
         self.actionGetMasterData.triggered.connect(self.get_master_data)
         self.actionGetETPPrice.triggered.connect(self.get_etp_price)
+        self.actionOrder.triggered.connect(self.manual_order)
+        self.actionOrderStatus.triggered.connect(self.order_status)
+
+    def order_status(self):
+        self.order_stauts = acc.OrderStauts()
+
+    def manual_order(self):
+        self.order = acc.Order()
+        print('manual order')
 
     def get_etp_price(self):
         # print('etp price ....')

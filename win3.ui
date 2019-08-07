@@ -86,10 +86,19 @@
     <property name="title">
      <string>File</string>
     </property>
+    <addaction name="actionSetDB"/>
     <addaction name="actionQuit"/>
+   </widget>
+   <widget class="QMenu" name="menuOrder">
+    <property name="title">
+     <string>Order</string>
+    </property>
+    <addaction name="actionOrder"/>
+    <addaction name="actionOrderStatus"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuAPI_Menu"/>
+   <addaction name="menuOrder"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionConnect">
@@ -127,9 +136,24 @@
     <string>GetMasterData</string>
    </property>
   </action>
+  <action name="actionOrder">
+   <property name="text">
+    <string>Order</string>
+   </property>
+  </action>
   <action name="actionGetETPPrice">
    <property name="text">
     <string>GetETPPrice</string>
+   </property>
+  </action>
+  <action name="actionOrderStatus">
+   <property name="text">
+    <string>OrderStatus</string>
+   </property>
+  </action>
+  <action name="actionSetDB">
+   <property name="text">
+    <string>SetDB</string>
    </property>
   </action>
  </widget>
