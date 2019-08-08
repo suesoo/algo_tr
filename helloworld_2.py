@@ -7,6 +7,7 @@ import mysql.connector
 import pandas as pd
 import account as acc
 import time
+import db_man as db
 
 
 g_objCodeMgr = win32com.client.Dispatch('CpUtil.CpCodeMgr')
@@ -255,7 +256,7 @@ class PriceHistory:
         self.db_master_update(df_kosdaq)
 
     def db_master_update(self, df_data, truncate=False):
-        self.conn = mysql.connector.connect(**self.db_config)
+        self.conn = mysql.connector.connect(**db.DB.db_config)
         self.cursor = self.conn.cursor()
         if truncate:
             self.cursor.execute('truncate table market.master')
@@ -276,7 +277,7 @@ class PriceHistory:
         print('db updated.')
 
     def db_price_update(self, df_data, code):
-        self.conn = mysql.connector.connect(**self.db_config)
+        self.conn = mysql.connector.connect(**db.DB.db_config)
         self.cursor = self.conn.cursor()
         query = "insert into market.etp(prod_code, tr_date, open, high, low, close, volume) values(%s, %s, %s, %s,%s, %s, %s)"
         query_2 = "update market.etp set open = %s, high = %s, low = %s, close = %s, volume = %s where prod_code = %s and tr_date = %s"
@@ -293,7 +294,7 @@ class PriceHistory:
         print('db updated.')
 
     def db_etp_update(self):
-        self.conn = mysql.connector.connect(**self.db_config)
+        self.conn = mysql.connector.connect(**db.DB.db_config)
         self.cursor = self.conn.cursor()
         query = "select * from market.master where section = '10' or section = '17'"
         df = pd.read_sql(query, self.conn)
@@ -338,6 +339,11 @@ class MyWindow(QMainWindow):
         self.actionGetETPPrice.triggered.connect(self.get_etp_price)
         self.actionOrder.triggered.connect(self.manual_order)
         self.actionOrderStatus.triggered.connect(self.order_status)
+        self.actionSetDB.triggered.connect(self.dlg_set_db)
+        self.set_db = db.SetDB()
+
+    def dlg_set_db(self):
+        self.set_db.show()
 
     def order_status(self):
         self.order_stauts = acc.OrderStauts()
