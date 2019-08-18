@@ -8,13 +8,13 @@ import pandas as pd
 import account as acc
 import time
 import db_man as db
+import api
 
-
-g_objCodeMgr = win32com.client.Dispatch('CpUtil.CpCodeMgr')
-g_objCpCybos= win32com.client.Dispatch('CpUtil.CpCybos')
-g_objCpTrade = win32com.client.Dispatch('CpTrade.CpTdUtil')
-g_objFutureMgr = win32com.client.Dispatch("CpUtil.CpFutureCode")
-g_objStockWeek = win32com.client.Dispatch("DsCbo1.StockWeek")
+# g_objCodeMgr = win32com.client.Dispatch('CpUtil.CpCodeMgr')
+# g_objCpCybos= win32com.client.Dispatch('CpUtil.CpCybos')
+# g_objCpTrade = win32com.client.Dispatch('CpTrade.CpTdUtil')
+# g_objFutureMgr = win32com.client.Dispatch("CpUtil.CpFutureCode")
+# g_objStockWeek = win32com.client.Dispatch("DsCbo1.StockWeek")
 
 code_dict = {'A000660': 0,
              'A010950': 1,
@@ -71,7 +71,7 @@ class CpStockCur:
         self.main = main_win
 
     def Subscribe(self, code):
-        self.objStockCur = win32com.client.Dispatch("DsCbo1.StockCur")
+        self.objStockCur = api.CreonAPI.obj_stock_cur
         win32com.client.WithEvents(self.objStockCur, CpEvent)
         self.objStockCur.SetInputValue(0, code)
         CpEvent.instance = self.objStockCur
@@ -84,13 +84,16 @@ class CpStockCur:
 
 class CpStockMst:
 
+    classvar = None
+
     def __init__(self, main_win):
         self.main = main_win
-        self.objStockMst = win32com.client.Dispatch("DsCbo1.StockMst")
+        self.objStockMst = api.CreonAPI.obj_stock_mst
 
     def Request(self, code):
         # 연결 여부 체크
-        bConnect = g_objCpCybos.IsConnect
+        obj_cp_cybos = api.CreonAPI.obj_cp_cybos
+        bConnect = obj_cp_cybos.IsConnect
         if bConnect == 0:
             print("PLUS가 정상적으로 연결되지 않음. ")
             return False
@@ -153,27 +156,28 @@ class PriceHistory:
         print("init PriceHistory class")
 
     def request_history(self, code):
-        bConnect = g_objCpCybos.IsConnect
+        bConnect = api.CreonAPI.obj_cp_cybos.IsConnect
         if bConnect == 0:
             print("PLUS가 정상적으로 연결되지 않음.")
             exit()
 
         # 일자별 object 구하기
-        g_objStockWeek.SetInputValue(0, code)  # 종목 코드 - 삼성전자
+        obj_stock_week = api.CreonAPI.obj_stock_week
+        obj_stock_week.SetInputValue(0, code)  # 종목 코드 - 삼성전자
 
         # 최초 데이터 요청
-        ret = self.request_com(g_objStockWeek, code)
+        ret = self.request_com(obj_stock_week, code)
         if not ret:
             exit()
 
         # 연속 데이터 요청
         # 예제는 5번만 연속 통신 하도록 함.
         NextCount = 1
-        while g_objStockWeek.Continue:  # 연속 조회처리
+        while obj_stock_week.Continue:  # 연속 조회처리
             NextCount += 1
             # if NextCount > 80:
             #     break
-            ret = self.request_com(g_objStockWeek, code)
+            ret = self.request_com(obj_stock_week, code)
             if not ret:
                 exit()
 
@@ -217,7 +221,7 @@ class PriceHistory:
     def request_master(self):
 
         # 연결 여부 체크
-        bConnect = g_objCpCybos.IsConnect
+        bConnect = api.CreonAPI.obj_cp_cybos.IsConnect
         if bConnect == 0:
             print("PLUS가 정상적으로 연결되지 않음. ")
             return
@@ -349,7 +353,7 @@ class MyWindow(QMainWindow):
         self.order_stauts = acc.OrderStauts()
 
     def manual_order(self):
-        self.order = acc.Order()
+        self.order = acc.OrderDlg()
         print('manual order')
 
     def get_etp_price(self):
@@ -389,7 +393,7 @@ class MyWindow(QMainWindow):
             print('오류: 일반권한으로 실행됨. 관리자 권한으로 실행해 주세요')
             return False
         # 연결 여부 체크
-        if g_objCpCybos.IsConnect == 0:
+        if api.CreonAPI.obj_cp_cybos.IsConnect == 0:
             print("PLUS가 정상적으로 연결되지 않음. ")
             return False
         print('connected sucessfully')
@@ -420,6 +424,7 @@ class MyWindow(QMainWindow):
 
 
 if __name__ == "__main__":
+    api.CreonAPI.set_api()
     app = QApplication(sys.argv)
     myWindow = MyWindow()
     myWindow.show()
