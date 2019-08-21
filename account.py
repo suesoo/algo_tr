@@ -2,14 +2,49 @@ from PyQt5.QtWidgets import *
 from PyQt5 import uic
 import db_man as db
 import api
+# import Enum
+
+
+# enum 주문 상태 세팅용
+class OrderStatus:
+    nothing = 1          # 별 일 없는 상태
+    newOrder = 2          # 신규 주문 낸 상태
+    orderConfirm = 3      # 신규 주문 처리 확인
+    modifyOrder = 4     # 정정 주문 낸 상태
+    cancelOrder = 5      # 취소 주문 낸 상태
+
+
+# 주문 체결 pb 기록용(종료 시 받은 데이터 print)
+class orderHistoryData:
+    def __init__(self):
+        self.flag = ""
+        self.code = ""
+        self.price = 0
+        self.orderamount = 0
+        self.contamount = 0
+        self.etc = ""
+
+    def sethistory(self, flag, code, price, amount, contamount, ordernum, etc):
+        self.flag = flag
+        self.code = code
+        self.price = price
+        self.orderamount = amount
+        self.contamount = contamount
+        self.ordernum = ordernum
+        self.etc = etc
+
+    def printhistory(self):
+        print(self.flag, self.code, "가격:", self.price, "수량:", self.orderamount, "체결수량:", self.contamount, "주문번호:",
+              self.ordernum, self.etc)
 
 
 class Order:
 
     def __init__(self):
         self.obj_stock_order = api.CreonAPI.obj_stock_order
+        self.history = []
 
-    def send_order(self, acc, pw, code, buy_sell, qty, price):
+    def send_order(self, acc, code, buy_sell, i_qty, i_price):
         # 연결 여부 체크
         bConnect = api.CreonAPI.obj_cp_cybos.IsConnect
         if bConnect == 0:
@@ -32,8 +67,8 @@ class Order:
         self.obj_stock_order.SetInputValue(1, acc)  # 계좌번호
         self.obj_stock_order.SetInputValue(2, accFlag[0])  # 상품구분 - 주식 상품 중 첫번째
         self.obj_stock_order.SetInputValue(3, code)  # 종목코드 - A003540 - 대신증권 종목
-        self.obj_stock_order.SetInputValue(4, qty)  # 매수수량 10주
-        self.obj_stock_order.SetInputValue(5, price)  # 주문단가  - 14,100원
+        self.obj_stock_order.SetInputValue(4, i_qty)  # 매수수량 10주
+        self.obj_stock_order.SetInputValue(5, i_price)  # 주문단가  - 14,100원
         self.obj_stock_order.SetInputValue(7, "0")  # 주문 조건 구분 코드, 0: 기본 1: IOC 2:FOK
         self.obj_stock_order.SetInputValue(8, "01")  # 주문호가 구분코드 - 01: 보통
 
@@ -45,6 +80,76 @@ class Order:
         print("통신상태", rqStatus, rqRet)
         if rqStatus != 0:
             exit()
+
+    def initOrder(self):
+        # 주문 정보 초기화
+        self.orderStatus = OrderStatus.nothing
+        self.ordernum = 0        # 주문번호
+        self.remainAmount = 0 # 주문 후 미체결 수량
+        self.orderNonce = 9     # 매수 주문 호가 조정 변수 ( 9 > 8 > 7 .. 순으로 호가 조정)
+
+    # 실시간 주문 체결 업데이트
+    def monitorOrderStatus(self, code, ordernum, conflags, price, amount, balance):
+        print("주문체결: ", code, ordernum, conflags, price, amount, balance)
+        if self.orderStatus == OrderStatus.nothing:
+            return
+        # 체결: 체결 시 체결 수량/미체결 수량 계산
+        if conflags == "체결":
+            self.remainAmount -= amount  # 미체결 수량 계산
+            if self.orderStatus == OrderStatus.orderConfirm:
+                print("주문 체결 됨 ", "수량", amount, "잔고수량:", balance, "미체결수량:", self.remainAmount)
+
+            if self.remainAmount <= 0:  # 전량 체결 됨
+                self.initOrder()
+
+            # for debug
+            history = orderHistoryData()
+            history.sethistory(conflags, code, price, self.remainAmount, amount, ordernum, "")
+            self.history.append(history)
+
+        #  접수: 신규 주문 > 접수 ;--> 주문번호, 주문 정상 처리
+        elif conflags == "접수":
+            if self.orderStatus == OrderStatus.newOrder:
+                self.ordernum = ordernum  # 주문번호 업데이트
+                self.remainAmount = amount  # 주문 후 미체결 수량
+                self.orderStatus = OrderStatus.orderConfirm
+
+                # for debug
+                history = orderHistoryData()
+                history.sethistory(conflags, code, price, amount, 0, ordernum, "신규 매수")
+                self.history.append(history)
+                history.printhistory()
+
+        #  확인: 정정/취소 주문 > 확인 ;--> 정정/취소 주문 정상 처리 확인
+        elif conflags == "확인":
+            etc = ""
+            if self.orderStatus == OrderStatus.modifyOrder:  # 정정 확인
+                self.ordernum = ordernum  # 주문번호 업데이트
+                self.orderStatus = OrderStatus.orderConfirm
+                etc = "정정확인"
+            elif self.orderStatus == OrderStatus.cancelOrder:  # 취소 확인
+                self.initOrder()
+                etc = "취소확인"
+
+            # for debug
+            history = orderHistoryData()
+            print(code, price)
+            print(self.remainAmount, ordernum)
+            history.sethistory(conflags, code, price, self.remainAmount, 0, ordernum, etc)
+            self.history.append(history)
+            history.printhistory()
+
+        # 거부: 정정/취소 주문 > 거부 ;--> 정정/취소 주문 거부, 정정/취소 불가
+        elif conflags == "거부":
+            if self.orderStatus == OrderStatus.modifyOrder or self.orderStatus == OrderStatus.cancelOrder:
+                print("주문거부 발생, 반드시 확인 필요")
+                self.orderStatus = OrderStatus.newOrder  # 주문 상태를 이전으로 돌림
+
+            # for debug
+            history = orderHistoryData()
+            history.sethistory(conflags, code, price, amount, 0, ordernum, "")
+            self.history.append(history)
+            history.printhistory()
 
 
 class OrderDlg(QDialog):

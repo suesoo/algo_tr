@@ -75,12 +75,20 @@
     <property name="title">
      <string>API Menu</string>
     </property>
+    <widget class="QMenu" name="menuRealTime">
+     <property name="title">
+      <string>RealTime</string>
+     </property>
+     <addaction name="actionorder"/>
+     <addaction name="actionPrice"/>
+    </widget>
     <addaction name="actionConnect"/>
     <addaction name="actionSubscribe_Price"/>
     <addaction name="actionUnsubscribe_Price"/>
     <addaction name="actionGetHistoryData"/>
     <addaction name="actionGetMasterData"/>
     <addaction name="actionGetETPPrice"/>
+    <addaction name="menuRealTime"/>
    </widget>
    <widget class="QMenu" name="menuFile">
     <property name="title">
@@ -154,6 +162,16 @@
   <action name="actionSetDB">
    <property name="text">
     <string>SetDB</string>
+   </property>
+  </action>
+  <action name="actionorder">
+   <property name="text">
+    <string>Order</string>
+   </property>
+  </action>
+  <action name="actionPrice">
+   <property name="text">
+    <string>Price</string>
    </property>
   </action>
  </widget>

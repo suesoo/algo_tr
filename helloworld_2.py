@@ -29,40 +29,105 @@ class CpEvent:
     instance = None
     main_win = None
 
+    def set_params(self, client, name, parent, order_handler=None):
+        self.client = client  # CP 실시간 통신 object
+        self.name = name  # 서비스가 다른 이벤트를 구분하기 위한 이름
+        self.parent = parent  # callback 을 위해 보관
+        self.order_handler = order_handler# 주문 처리를 위해 보관
+
+        # 데이터 변환용
+        self.concdic = {"1": "체결", "2": "확인", "3": "거부", "4": "접수"}
+        self.buyselldic = {"1": "매도", "2": "매수"}
+        print(self.concdic)
+        print(self.buyselldic)
+
     def OnReceived(self):
 
-        code = CpEvent.instance.GetHeaderValue(0)  # 종목코드
-        name = CpEvent.instance.GetHeaderValue(1)  # 종목명
-        time = CpEvent.instance.GetHeaderValue(3)  # 시간
-        cprice = CpEvent.instance.GetHeaderValue(13)  # 종가
-        diff = CpEvent.instance.GetHeaderValue(2)  # 대비
-        open = CpEvent.instance.GetHeaderValue(4)  # 시가
-        high = CpEvent.instance.GetHeaderValue(5)  # 고가
-        low = CpEvent.instance.GetHeaderValue(6)  # 저가
-        offer = CpEvent.instance.GetHeaderValue(7)  # 매도호가
-        bid = CpEvent.instance.GetHeaderValue(8)  # 매수호가
-        vol = CpEvent.instance.GetHeaderValue(9)  # 거래량
-        vol_value = CpEvent.instance.GetHeaderValue(10)  # 거래대금
-        exFlag = CpEvent.instance.GetHeaderValue(19)  # 예상체결 플래그
+        if self.name == 'real_price':
+            code = self.client.GetHeaderValue(0)  # 종목코드
+            name = self.client.GetHeaderValue(1)  # 종목명
+            time = self.client.GetHeaderValue(3)  # 시간
+            cprice = self.client.GetHeaderValue(13)  # 종가
+            diff = self.client.GetHeaderValue(2)  # 대비
+            open = self.client.GetHeaderValue(4)  # 시가
+            high = self.client.GetHeaderValue(5)  # 고가
+            low = self.client.GetHeaderValue(6)  # 저가
+            offer = self.client.GetHeaderValue(7)  # 매도호가
+            bid = self.client.GetHeaderValue(8)  # 매수호가
+            vol = self.client.GetHeaderValue(9)  # 거래량
+            vol_value = self.client.GetHeaderValue(10)  # 거래대금
+            exFlag = self.client.GetHeaderValue(19)  # 예상체결 플래그
 
-        line_no = code_dict[code]
-        CpEvent.main_win.price_table.setItem(line_no, 0, QTableWidgetItem(code))
-        CpEvent.main_win.price_table.setItem(line_no, 1, QTableWidgetItem(name))
-        CpEvent.main_win.price_table.setItem(line_no, 2, QTableWidgetItem(str(cprice)))
-        CpEvent.main_win.price_table.setItem(line_no, 3, QTableWidgetItem(str(diff)))
-        CpEvent.main_win.price_table.setItem(line_no, 4, QTableWidgetItem(str(offer)))
-        CpEvent.main_win.price_table.setItem(line_no, 5, QTableWidgetItem(str(bid)))
-        CpEvent.main_win.price_table.setItem(line_no, 6, QTableWidgetItem(str(vol)))
-        CpEvent.main_win.price_table.setItem(line_no, 7, QTableWidgetItem(str(vol_value)))
-        CpEvent.main_win.price_table.setItem(line_no, 8, QTableWidgetItem(str(open)))
-        CpEvent.main_win.price_table.setItem(line_no, 9, QTableWidgetItem(str(high)))
-        CpEvent.main_win.price_table.setItem(line_no, 10, QTableWidgetItem(str(low)))
-        CpEvent.main_win.price_table.resizeColumnsToContents()
+        # code = CpEvent.instance.GetHeaderValue(0)  # 종목코드
+        # name = CpEvent.instance.GetHeaderValue(1)  # 종목명
+        # time = CpEvent.instance.GetHeaderValue(3)  # 시간
+        # cprice = CpEvent.instance.GetHeaderValue(13)  # 종가
+        # diff = CpEvent.instance.GetHeaderValue(2)  # 대비
+        # open = CpEvent.instance.GetHeaderValue(4)  # 시가
+        # high = CpEvent.instance.GetHeaderValue(5)  # 고가
+        # low = CpEvent.instance.GetHeaderValue(6)  # 저가
+        # offer = CpEvent.instance.GetHeaderValue(7)  # 매도호가
+        # bid = CpEvent.instance.GetHeaderValue(8)  # 매수호가
+        # vol = CpEvent.instance.GetHeaderValue(9)  # 거래량
+        # vol_value = CpEvent.instance.GetHeaderValue(10)  # 거래대금
+        # exFlag = CpEvent.instance.GetHeaderValue(19)  # 예상체결 플래그
+
+            line_no = code_dict[code]
+            CpEvent.main_win.price_table.setItem(line_no, 0, QTableWidgetItem(code))
+            CpEvent.main_win.price_table.setItem(line_no, 1, QTableWidgetItem(name))
+            CpEvent.main_win.price_table.setItem(line_no, 2, QTableWidgetItem(str(cprice)))
+            CpEvent.main_win.price_table.setItem(line_no, 3, QTableWidgetItem(str(diff)))
+            CpEvent.main_win.price_table.setItem(line_no, 4, QTableWidgetItem(str(offer)))
+            CpEvent.main_win.price_table.setItem(line_no, 5, QTableWidgetItem(str(bid)))
+            CpEvent.main_win.price_table.setItem(line_no, 6, QTableWidgetItem(str(vol)))
+            CpEvent.main_win.price_table.setItem(line_no, 7, QTableWidgetItem(str(vol_value)))
+            CpEvent.main_win.price_table.setItem(line_no, 8, QTableWidgetItem(str(open)))
+            CpEvent.main_win.price_table.setItem(line_no, 9, QTableWidgetItem(str(high)))
+            CpEvent.main_win.price_table.setItem(line_no, 10, QTableWidgetItem(str(low)))
+            CpEvent.main_win.price_table.resizeColumnsToContents()
+
+        elif self.name == 'conclusion':
+            conflag = self.client.GetHeaderValue(14)  # 체결 플래그
+            order_no = self.client.GetHeaderValue(5)  # 주문번호
+            amount = self.client.GetHeaderValue(3)  # 체결 수량
+            price = self.client.GetHeaderValue(4)  # 가격
+            code = self.client.GetHeaderValue(9)  # 종목코드
+            buy_sell = self.client.GetHeaderValue(12)  # 매수/매도 구분
+            balace = self.client.GetHeaderValue(23)  # 체결 후 잔고 수량
+
+            conflags = ""
+            if conflag in self.concdic:
+                conflags = self.concdic.get(conflag)
+                print(conflags)
+
+            bss = ""
+            if buy_sell in self.buyselldic:
+                bss = self.buyselldic.get(buy_sell)
+
+            print(conflags, bss, code, "주문번호:", order_no)
+            # call back 함수 호출해서 orderMain 에서 후속 처리 하게 한다.
+            self.order_handler.monitorOrderStatus(code, order_no, conflags, price, amount, balace)
 
         # if exFlag == '1':  # 동시호가 시간 (예상체결)
         #     print("실시간(예상체결)", timess, "*", cprice, "대비", diff, "체결량", cVol, "거래량", vol)
         # elif exFlag == ord('2'):  # 장중(체결)
         #     print("실시간(장중 체결)", timess, cprice, "대비", diff, "체결량", cVol, "거래량", vol)
+
+
+class CpPBConclusion:
+    def __init__(self):
+        self.name = "conclusion"
+        self.obj = win32com.client.Dispatch("DsCbo1.CpConclusion")
+        self.obj_stock_conclusion = api.CreonAPI.obj_stock_conclusion
+
+    def Subscribe(self, parent):
+        self.parent = parent
+        handler = win32com.client.WithEvents(self.obj_stock_conclusion, CpEvent)
+        handler.set_params(self.obj, self.name, parent)
+        self.obj_stock_conclusion.Subscribe()
+
+    def Unsubscribe(self):
+        self.obj_stock_conclusion.Unsubscribe()
 
 
 class CpStockCur:
@@ -72,7 +137,8 @@ class CpStockCur:
 
     def Subscribe(self, code):
         self.objStockCur = api.CreonAPI.obj_stock_cur
-        win32com.client.WithEvents(self.objStockCur, CpEvent)
+        obj_Event = win32com.client.WithEvents(self.objStockCur, CpEvent)
+        obj_Event.set_params(self.objStockCur, 'real_price', self.main)
         self.objStockCur.SetInputValue(0, code)
         CpEvent.instance = self.objStockCur
         CpEvent.main_win = self.main

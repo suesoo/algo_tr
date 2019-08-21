@@ -11,6 +11,7 @@ class CreonAPI:
     obj_stock_mst = None
     obj_stock_cur = None
     obj_stock_order = None
+    obj_stock_conclusion = None
 
     @classmethod
     def set_api(cls):
@@ -22,6 +23,7 @@ class CreonAPI:
         cls.obj_stock_mst = win32com.client.Dispatch("DsCbo1.StockMst")
         cls.obj_stock_cur = win32com.client.Dispatch("DsCbo1.StockCur")
         cls.obj_stock_order = win32com.client.Dispatch("CpTrade.CpTd0311")
+        cls.obj_stock_conclusion = win32com.client.Dispatch("DsCbo1.CpConclusion")
 
 
 
