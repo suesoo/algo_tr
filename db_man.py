@@ -50,7 +50,8 @@ class SetDB(QDialog):
         DB.db_config['database'] = db
         DB.db_config['user'] = user
         DB.db_config['password'] = password
-        print(host,port,db,user,password)
+        print('database 접속 방법이 재설정 되었습니다.')
+        # print(host,port,db,user,password)
 
     def closed(self):
         self.close()

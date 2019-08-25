@@ -40,46 +40,54 @@ class orderHistoryData:
 
 class Order:
 
-    def __init__(self):
-        self.obj_stock_order = api.CreonAPI.obj_stock_order
+    def __init__(self, CreonAPI):
+        self.api_stock_order = CreonAPI.obj_stock_order
+        self.api_cp_cybos = CreonAPI.obj_cp_cybos
+        self.api_cp_trade = CreonAPI.obj_cp_trade
         self.history = []
 
     def send_order(self, acc, code, buy_sell, i_qty, i_price):
         # 연결 여부 체크
-        bConnect = api.CreonAPI.obj_cp_cybos.IsConnect
+        bConnect = self.api_cp_cybos.IsConnect
         if bConnect == 0:
             print("PLUS가 정상적으로 연결되지 않음. ")
             exit()
 
-        # 주문 초기화
-        obj_trade = api.CreonAPI.obj_cp_trade
-        initCheck = obj_trade.TradeInit(0)
+        # # 주문 초기화
+        initCheck = self.api_cp_trade.TradeInit(0)
         if initCheck != 0:
-            print("주문 초기화 실패")
+            print("주문 초기화 실패, 체크섬",initCheck)
             exit()
 
-        # 주식 매수 주문
-        # acc = obj_trade.AccountNumber[0]  # 계좌번호
-        accFlag = obj_trade.GoodsList(acc, 1)  # 주식상품 구분
+        # # 주식 매수 주문
+        # import win32com
+        # obj_cp_trade = win32com.client.Dispatch('CpTrade.CpTdUtil')
+        # acc = obj_cp_trade.AccountNumber[0]  # 계좌번호
+        # print('self.api_cp_trade.',acc)
+        accFlag = self.api_cp_trade.GoodsList(acc, 1)  # 주식상품 구분
         print(acc, accFlag[0])
+        print('acc flag list', accFlag)
 
-        self.obj_stock_order.SetInputValue(0, buy_sell)  # 2: 매수
-        self.obj_stock_order.SetInputValue(1, acc)  # 계좌번호
-        self.obj_stock_order.SetInputValue(2, accFlag[0])  # 상품구분 - 주식 상품 중 첫번째
-        self.obj_stock_order.SetInputValue(3, code)  # 종목코드 - A003540 - 대신증권 종목
-        self.obj_stock_order.SetInputValue(4, i_qty)  # 매수수량 10주
-        self.obj_stock_order.SetInputValue(5, i_price)  # 주문단가  - 14,100원
-        self.obj_stock_order.SetInputValue(7, "0")  # 주문 조건 구분 코드, 0: 기본 1: IOC 2:FOK
-        self.obj_stock_order.SetInputValue(8, "01")  # 주문호가 구분코드 - 01: 보통
+        self.api_stock_order.SetInputValue(0, buy_sell)  # 2: 매수
+        self.api_stock_order.SetInputValue(1, acc)  # 계좌번호
+        self.api_stock_order.SetInputValue(2, '01')  # 상품구분 - 주식 상품 중 첫번째
+        self.api_stock_order.SetInputValue(3, code)  # 종목코드 - A003540 - 대신증권 종목
+        self.api_stock_order.SetInputValue(4, i_qty)  # 매수수량 10주
+        self.api_stock_order.SetInputValue(5, i_price)  # 주문단가  - 14,100원
+        self.api_stock_order.SetInputValue(7, "0")  # 주문 조건 구분 코드, 0: 기본 1: IOC 2:FOK
+        self.api_stock_order.SetInputValue(8, "01")  # 주문호가 구분코드 - 01: 보통
 
+        print('order buy_sell={}, acc={}, code={}'.format(buy_sell, acc, code))
         # 매수 주문 요청
-        self.obj_stock_order.BlockRequest()
-
-        rqStatus = self.obj_stock_order.GetDibStatus()
-        rqRet = self.obj_stock_order.GetDibMsg1()
+        self.api_stock_order.BlockRequest()
+        print('order requested')
+        rqStatus = self.api_stock_order.GetDibStatus()
+        rqRet = self.api_stock_order.GetDibMsg1()
         print("통신상태", rqStatus, rqRet)
         if rqStatus != 0:
             exit()
+        rt_code = self.api_stock_order.GetHeaderValue('3')
+        rt_order_no = self.api_stock_order.GetHeaderValue('8')
 
     def initOrder(self):
         # 주문 정보 초기화
@@ -154,7 +162,7 @@ class Order:
 
 class OrderDlg(QDialog):
 
-    def __init__(self):
+    def __init__(self, obj_order):
 
         super(OrderDlg, self).__init__()
         self.ui = uic.loadUi('order.ui', self)
@@ -165,19 +173,32 @@ class OrderDlg(QDialog):
         self.master_df = self.db.get_master(where="where section='10'")
         names = self.master_df.name.tolist()
         self.comboProduct.addItems(names)
-        self.obj_order = Order()
+        self.obj_order = obj_order
         print(self.master_df)
 
     def ordered(self):
+        idx_prod = self.comboProduct.currentIndex()
+        prod_code = self.master_df.code[idx_prod]
         price = self.linePrice.text()
         qty = self.lineQty.text()
+        try:
+            i_price = int(price)
+        except:
+            print('price must be integer number')
+            return False
+        try:
+            i_qty = int(qty)
+        except:
+            print('qty must be integer number')
+            return False
+
         if self.radioBuy.isChecked():
             buy_sell = '2'
         elif self.radioSell.isChecked():
             buy_sell = '1'
         else:
             print('not selected')
-        self.obj_order.send_order()
+        self.obj_order.send_order('782290748', prod_code, buy_sell, i_qty, i_price)
 
     def closed(self):
         print('closed')

@@ -117,7 +117,6 @@ class CpEvent:
 class CpPBConclusion:
     def __init__(self):
         self.name = "conclusion"
-        self.obj = win32com.client.Dispatch("DsCbo1.CpConclusion")
         self.obj_stock_conclusion = api.CreonAPI.obj_stock_conclusion
 
     def Subscribe(self, parent):
@@ -411,6 +410,8 @@ class MyWindow(QMainWindow):
         self.actionOrderStatus.triggered.connect(self.order_status)
         self.actionSetDB.triggered.connect(self.dlg_set_db)
         self.set_db = db.SetDB()
+        api.CreonAPI.set_api()
+        self.obj_order = acc.Order(api.CreonAPI)
 
     def dlg_set_db(self):
         self.set_db.show()
@@ -419,7 +420,7 @@ class MyWindow(QMainWindow):
         self.order_stauts = acc.OrderStauts()
 
     def manual_order(self):
-        self.order = acc.OrderDlg()
+        self.order = acc.OrderDlg(self.obj_order)
         print('manual order')
 
     def get_etp_price(self):
@@ -490,7 +491,6 @@ class MyWindow(QMainWindow):
 
 
 if __name__ == "__main__":
-    api.CreonAPI.set_api()
     app = QApplication(sys.argv)
     myWindow = MyWindow()
     myWindow.show()
