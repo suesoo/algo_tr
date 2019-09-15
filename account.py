@@ -60,13 +60,9 @@ class Order:
             exit()
 
         # # 주식 매수 주문
-        # import win32com
-        # obj_cp_trade = win32com.client.Dispatch('CpTrade.CpTdUtil')
-        # acc = obj_cp_trade.AccountNumber[0]  # 계좌번호
-        # print('self.api_cp_trade.',acc)
-        accFlag = self.api_cp_trade.GoodsList(acc, 1)  # 주식상품 구분
-        print(acc, accFlag[0])
-        print('acc flag list', accFlag)
+        # accFlag = self.api_cp_trade.GoodsList(acc, 1)  # 주식상품 구분
+        # print(acc, accFlag[0])
+        # print('acc flag list', accFlag)
 
         self.api_stock_order.SetInputValue(0, buy_sell)  # 2: 매수
         self.api_stock_order.SetInputValue(1, acc)  # 계좌번호
@@ -88,6 +84,49 @@ class Order:
             exit()
         rt_code = self.api_stock_order.GetHeaderValue('3')
         rt_order_no = self.api_stock_order.GetHeaderValue('8')
+
+    def send_cancel_order(self, acc, code, i_prev_order_no, i_qty):
+        # 연결 여부 체크
+        bConnect = self.api_cp_cybos.IsConnect
+        if bConnect == 0:
+            print("PLUS가 정상적으로 연결되지 않음. ")
+            exit()
+        self.api_stock_order.SetInputValue(1, i_prev_order_no)  # 원주문번호
+        self.api_stock_order.SetInputValue(2, acc)  # 계좌번호
+        self.api_stock_order.SetInputValue(3, '01')  # 상품구분 - 주식 상품 중 첫번째
+        self.api_stock_order.SetInputValue(4, code)  # 종목코드
+        self.api_stock_order.SetInputValue(5, i_qty)  # 취소수량
+        self.api_stock_order.BlockRequest()
+        print('order requested')
+        rqStatus = self.api_stock_order.GetDibStatus()
+        rqRet = self.api_stock_order.GetDibMsg1()
+        print("통신상태", rqStatus, rqRet)
+        if rqStatus != 0:
+            exit()
+        rt_prev_order_no = self.api_stock_order.GetHeaderValue('1')
+        rt_cancel_qty = self.api_stock_order.GetHeaderValue('5')
+
+    def send_modi_order(self, acc, code, i_prev_order_no, i_qty, i_price):
+        # 연결 여부 체크
+        bConnect = self.api_cp_cybos.IsConnect
+        if bConnect == 0:
+            print("PLUS가 정상적으로 연결되지 않음. ")
+            exit()
+        self.api_stock_order.SetInputValue(1, i_prev_order_no)  # 원주문번호
+        self.api_stock_order.SetInputValue(2, acc)  # 계좌번호
+        self.api_stock_order.SetInputValue(3, '01')  # 상품구분 - 주식 상품 중 첫번째
+        self.api_stock_order.SetInputValue(4, code)  # 종목코드
+        self.api_stock_order.SetInputValue(5, i_qty)  # 정정수량
+        self.api_stock_order.SetInputValue(6, i_price)  # 정정 가격
+        self.api_stock_order.BlockRequest()
+        print('order requested')
+        rqStatus = self.api_stock_order.GetDibStatus()
+        rqRet = self.api_stock_order.GetDibMsg1()
+        print("통신상태", rqStatus, rqRet)
+        if rqStatus != 0:
+            exit()
+        rt_prev_order_no = self.api_stock_order.GetHeaderValue('1')
+        rt_cancel_qty = self.api_stock_order.GetHeaderValue('5')
 
     def initOrder(self):
         # 주문 정보 초기화
@@ -198,7 +237,7 @@ class OrderDlg(QDialog):
             buy_sell = '1'
         else:
             print('not selected')
-        self.obj_order.send_order('782290748', prod_code, buy_sell, i_qty, i_price)
+        self.obj_order.send_order('78229074801', prod_code, buy_sell, i_qty, i_price)
 
     def closed(self):
         print('closed')

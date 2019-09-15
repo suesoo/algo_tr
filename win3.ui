@@ -79,7 +79,7 @@
      <property name="title">
       <string>RealTime</string>
      </property>
-     <addaction name="actionorder"/>
+     <addaction name="actionOrderFlow"/>
      <addaction name="actionPrice"/>
     </widget>
     <addaction name="actionConnect"/>
@@ -164,7 +164,7 @@
     <string>SetDB</string>
    </property>
   </action>
-  <action name="actionorder">
+  <action name="actionOrderFlow">
    <property name="text">
     <string>Order</string>
    </property>

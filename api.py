@@ -18,6 +18,8 @@ class CreonAPI:
         cls.obj_code_mgr = win32com.client.Dispatch('CpUtil.CpCodeMgr')
         cls.obj_cp_cybos = win32com.client.Dispatch('CpUtil.CpCybos')
         cls.obj_cp_trade = win32com.client.Dispatch('CpTrade.CpTdUtil')
+        # initCheck = cls.obj_cp_trade.TradeInit(0)
+        # print('inittrade', initCheck)
         cls.obj_future_mgr = win32com.client.Dispatch("CpUtil.CpFutureCode")
         cls.obj_stock_week = win32com.client.Dispatch("DsCbo1.StockWeek")
         cls.obj_stock_mst = win32com.client.Dispatch("DsCbo1.StockMst")

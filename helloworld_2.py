@@ -122,7 +122,7 @@ class CpPBConclusion:
     def Subscribe(self, parent):
         self.parent = parent
         handler = win32com.client.WithEvents(self.obj_stock_conclusion, CpEvent)
-        handler.set_params(self.obj, self.name, parent)
+        handler.set_params(self.obj_stock_conclusion, self.name, parent)
         self.obj_stock_conclusion.Subscribe()
 
     def Unsubscribe(self):
@@ -393,9 +393,11 @@ class MyWindow(QMainWindow):
         # self.setWindowTitle("Algo Trader")
         g_main_win = self
         self.isRq = False
+        api.CreonAPI.set_api()
         self.objStockMst = CpStockMst(self)
         self.objStockCur = CpStockCur(self)
         self.objPriceHistory = PriceHistory()
+        self.conclusion = CpPBConclusion()
 
         self.setUI()
         # slot 등록하는 과정
@@ -409,9 +411,12 @@ class MyWindow(QMainWindow):
         self.actionOrder.triggered.connect(self.manual_order)
         self.actionOrderStatus.triggered.connect(self.order_status)
         self.actionSetDB.triggered.connect(self.dlg_set_db)
+        self.actionOrderFlow.triggered.connect(self.order_flow)
         self.set_db = db.SetDB()
-        api.CreonAPI.set_api()
         self.obj_order = acc.Order(api.CreonAPI)
+
+    def order_flow(self):
+        self.conclusion.Subscribe(self)
 
     def dlg_set_db(self):
         self.set_db.show()
